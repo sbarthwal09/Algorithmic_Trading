@@ -1,0 +1,22 @@
+{% extends "trading/base.html" %}
+{% block title %}Delete Portfolio &middot; Momentum Trader{% endblock %}
+
+{% block content %}
+<h1 class="h3 mb-4">Delete Portfolio</h1>
+
+<div class="card metric-card border-danger">
+    <div class="card-body">
+        <p class="mb-3">
+            Are you sure you want to delete
+            <strong>{{ portfolio.name }}</strong>? This will also remove all of its
+            positions, trades and performance history. This action cannot be undone.
+        </p>
+        <form method="post" class="d-flex gap-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Delete</button>
+            <a class="btn btn-outline-secondary"
+               href="{% url 'trading:portfolio_detail' portfolio.pk %}">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

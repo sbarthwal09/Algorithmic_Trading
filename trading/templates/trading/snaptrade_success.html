@@ -1,0 +1,18 @@
+{% extends "trading/base.html" %}
+{% block title %}Brokerage Connected &middot; Momentum Trader{% endblock %}
+
+{% block content %}
+<div class="card metric-card mx-auto" style="max-width: 560px;">
+    <div class="card-body text-center py-5">
+        <h1 class="h4 mb-3">Brokerage connected</h1>
+        <p class="text-muted">
+            Your brokerage account has been linked. You can now sync positions and
+            run a rebalance from your portfolio.
+        </p>
+        <div class="d-flex justify-content-center gap-2 mt-4">
+            <a class="btn btn-primary" href="{% url 'trading:portfolio_list' %}">Go to Portfolios</a>
+            <a class="btn btn-outline-secondary" href="{% url 'trading:dashboard' %}">Dashboard</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

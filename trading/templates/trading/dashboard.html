@@ -1,0 +1,148 @@
+{% extends "trading/base.html" %}
+{% block title %}Dashboard &middot; Momentum Trader{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Dashboard</h1>
+    <div>
+        <a class="btn btn-outline-secondary btn-sm" href="{% url 'trading:momentum_scores' %}">Momentum</a>
+        <a class="btn btn-primary btn-sm" href="{% url 'trading:portfolio_create' %}">New Portfolio</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card metric-card h-100">
+            <div class="card-body">
+                <div class="text-muted text-uppercase small">Portfolios</div>
+                <div class="fs-3 fw-semibold">{{ portfolio_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card metric-card h-100">
+            <div class="card-body">
+                <div class="text-muted text-uppercase small">Total Value</div>
+                <div class="fs-3 fw-semibold">${{ total_portfolio_value|floatformat:2 }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card metric-card h-100">
+            <div class="card-body">
+                <div class="text-muted text-uppercase small">Active Stocks</div>
+                <div class="fs-3 fw-semibold">{{ stock_count }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card metric-card h-100">
+            <div class="card-header bg-white fw-semibold">
+                Top Momentum
+                {% if latest_momentum_date %}
+                    <span class="text-muted small">({{ latest_momentum_date }})</span>
+                {% endif %}
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Ticker</th>
+                        <th class="text-end">Score</th>
+                        <th class="text-end">Quintile</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for score in top_scores %}
+                        <tr>
+                            <td>{{ score.rank }}</td>
+                            <td class="fw-semibold">{{ score.stock.ticker }}</td>
+                            <td class="text-end">{{ score.momentum_score|floatformat:4 }}</td>
+                            <td class="text-end">{{ score.quintile }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-muted text-center py-3">
+                            No momentum scores yet. Run a rebalance from a portfolio to generate them.
+                        </td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card metric-card h-100">
+            <div class="card-header bg-white fw-semibold">Recent Signals</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Ticker</th>
+                        <th>Type</th>
+                        <th class="text-end">Executed</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for signal in recent_signals %}
+                        <tr>
+                            <td>{{ signal.signal_date }}</td>
+                            <td class="fw-semibold">{{ signal.stock.ticker }}</td>
+                            <td>
+                                <span class="badge {% if signal.signal_type == 'BUY' %}bg-success{% elif signal.signal_type == 'SELL' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ signal.signal_type }}
+                                </span>
+                            </td>
+                            <td class="text-end">{{ signal.is_executed|yesno:"Yes,No" }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4" class="text-muted text-center py-3">No signals generated yet.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card metric-card mt-4">
+    <div class="card-header bg-white fw-semibold">Recent Rebalances</div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Status</th>
+                <th class="text-end">Analyzed</th>
+                <th class="text-end">Buys</th>
+                <th class="text-end">Sells</th>
+                <th class="text-end">Value</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for event in recent_rebalances %}
+                <tr>
+                    <td>{{ event.date }}</td>
+                    <td>
+                        <span class="badge {% if event.execution_status == 'COMPLETED' %}bg-success{% elif event.execution_status == 'FAILED' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                            {{ event.get_execution_status_display }}
+                        </span>
+                    </td>
+                    <td class="text-end">{{ event.total_stocks_analyzed }}</td>
+                    <td class="text-end">{{ event.buy_signals_generated }}</td>
+                    <td class="text-end">{{ event.sell_signals_generated }}</td>
+                    <td class="text-end">${{ event.total_portfolio_value|default_if_none:"-"|floatformat:2 }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-muted text-center py-3">No rebalances have run yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

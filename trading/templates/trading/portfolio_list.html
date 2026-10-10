@@ -1,0 +1,62 @@
+{% extends "trading/base.html" %}
+{% block title %}Portfolios &middot; Momentum Trader{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Portfolios</h1>
+    <a class="btn btn-primary btn-sm" href="{% url 'trading:portfolio_create' %}">New Portfolio</a>
+</div>
+
+<div class="card metric-card">
+    <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th class="text-end">Total Value</th>
+                <th class="text-end">Cash</th>
+                <th class="text-end">Positions</th>
+                <th>Brokerage</th>
+                <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for portfolio in portfolios %}
+                <tr>
+                    <td>
+                        <a class="fw-semibold text-decoration-none"
+                           href="{% url 'trading:portfolio_detail' portfolio.pk %}">
+                            {{ portfolio.name }}
+                        </a>
+                        {% if portfolio.description %}
+                            <div class="text-muted small">{{ portfolio.description|truncatechars:80 }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">${{ portfolio.total_value|floatformat:2 }}</td>
+                    <td class="text-end">${{ portfolio.current_cash|floatformat:2 }}</td>
+                    <td class="text-end">{{ portfolio.open_positions }}</td>
+                    <td>
+                        {% if portfolio.is_connected %}
+                            <span class="badge bg-success">Connected</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Not connected</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a class="btn btn-outline-primary btn-sm"
+                           href="{% url 'trading:portfolio_detail' portfolio.pk %}">View</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No portfolios yet.
+                        <a href="{% url 'trading:portfolio_create' %}">Create your first portfolio</a>.
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

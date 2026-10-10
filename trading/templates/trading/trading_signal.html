@@ -1,0 +1,59 @@
+{% extends "trading/base.html" %}
+{% block title %}Trading Signals &middot; Momentum Trader{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Trading Signals</h1>
+    <div class="btn-group btn-group-sm">
+        <a class="btn btn-outline-secondary {% if not signal_type %}active{% endif %}"
+           href="{% url 'trading:trading_signals' %}">All</a>
+        <a class="btn btn-outline-success {% if signal_type == 'BUY' %}active{% endif %}"
+           href="?type=BUY">Buys</a>
+        <a class="btn btn-outline-danger {% if signal_type == 'SELL' %}active{% endif %}"
+           href="?type=SELL">Sells</a>
+        <a class="btn btn-outline-warning {% if signal_type == 'HOLD' %}active{% endif %}"
+           href="?type=HOLD">Holds</a>
+    </div>
+</div>
+
+<div class="card metric-card">
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead>
+            <tr>
+                <th>Date</th>
+                <th>Ticker</th>
+                <th>Type</th>
+                <th class="text-end">Target Qty</th>
+                <th class="text-end">Target Value</th>
+                <th class="text-center">Executed</th>
+                <th>Reason</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for signal in signals %}
+                <tr>
+                    <td>{{ signal.signal_date }}</td>
+                    <td class="fw-semibold">{{ signal.stock.ticker }}</td>
+                    <td>
+                        <span class="badge {% if signal.signal_type == 'BUY' %}bg-success{% elif signal.signal_type == 'SELL' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ signal.signal_type }}
+                        </span>
+                    </td>
+                    <td class="text-end">{{ signal.target_quantity|default_if_none:"-" }}</td>
+                    <td class="text-end">
+                        {% if signal.target_value %}${{ signal.target_value|floatformat:2 }}{% else %}-{% endif %}
+                    </td>
+                    <td class="text-center">{{ signal.is_executed|yesno:"Yes,No" }}</td>
+                    <td class="text-muted small">{{ signal.reason|truncatechars:80 }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">
+                    No signals yet. Run a rebalance from a portfolio to generate signals.
+                </td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

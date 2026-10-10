@@ -1,4 +1,6 @@
-Django
-massive
-pandas
-python-decouple
+Django==6.1.2
+massive==2.8.0
+numpy==2.5.3
+pandas==3.0.6
+python-decouple==3.8
+snaptrade-python-sdk==13.0.36

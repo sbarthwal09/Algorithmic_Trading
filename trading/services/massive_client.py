@@ -10,6 +10,20 @@ from massive.exceptions import BadResponse
 
 logger = logging.getLogger(__name__)
 
+# Fallback universe used when the Massive ticker endpoint is unavailable.
+DEFAULT_UNIVERSE = [
+    "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "GOOG", "META", "TSLA", "BRK.B",
+    "UNH", "XOM", "JNJ", "JPM", "V", "PG", "MA", "HD", "CVX", "MRK", "ABBV",
+    "LLY", "PEP", "KO", "AVGO", "COST", "WMT", "MCD", "DIS", "CSCO", "ADBE",
+    "TMO", "ABT", "CRM", "ACN", "LIN", "AMD", "NFLX", "DHR", "TXN", "NEE",
+    "PM", "UPS", "RTX", "QCOM", "LOW", "ORCL", "INTC", "INTU", "AMGN", "CAT",
+    "BA", "GE", "SBUX", "IBM", "NOW", "GS", "BLK", "AXP", "ISRG", "MDT",
+    "BKNG", "SPGI", "PLD", "T", "DE", "MMC", "ADP", "LMT", "CB", "CI",
+    "MO", "ZTS", "SYK", "AMAT", "GILD", "ADI", "MDLZ", "REGN", "VRTX", "PGR",
+    "SCHW", "SO", "DUK", "EQIX", "NKE", "TJX", "BSX", "ETN", "KLAC", "CME",
+    "USB", "PNC", "TGT", "MU", "LRCX", "SNPS", "CDNS", "MSI", "ICE", "WM",
+]
+
 
 class MassiveAPIClient:
     def __init__(self, api_key: str = None, requests_per_minute: int = 5):
@@ -107,49 +121,6 @@ class MassiveAPIClient:
             except (ValueError, TypeError, BadResponse) as e:
                 logger.error(f"Error fetching data for {ticker}: {str(e)}")
                 raise
-
-    def fetch_multiple_stocks(
-        self,
-        tickers: List[str],
-        start_date: str,
-        end_date: str,
-        batch_size: int = 5,
-        delay_between_batches: int = 15,
-        **kwargs,
-    ) -> Dict[str, List[Dict]]:
-        """
-        Fetch daily data for multiple tickers in batches to respect rate limits.
-
-        Returns:
-            Dict mapping ticker to a list of daily aggregate dicts.
-        """
-        all_data: Dict[str, List[Dict]] = {}
-
-        for i in range(0, len(tickers), batch_size):
-            batch = tickers[i : i + batch_size]
-
-            for ticker in batch:
-                try:
-                    all_data[ticker] = self.fetch_stock_data(
-                        ticker, start_date, end_date, **kwargs
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to fetch data for {ticker}: {str(e)}")
-                    all_data[ticker] = []
-
-            if i + batch_size < len(tickers):
-                time.sleep(delay_between_batches)
-
-        return all_data
-
-    def _find_closest_price(self, df: pd.DataFrame, target_date) -> Optional[float]:
-        """Return the close price on the trading day closest to target_date."""
-        if df.empty:
-            return None
-
-        target = pd.Timestamp(target_date)
-        closest_idx = (df["date"] - target).abs().idxmin()
-        return float(df.loc[closest_idx, "close"])
 
     def fetch_bulk_momentum_data(
         self, tickers: List[str], calculation_date: datetime = None
@@ -376,3 +347,128 @@ class MassiveAPIClient:
             ]
 
         return momentum_data
+
+    def fetch_multiple_stocks(
+        self,
+        tickers: List[str],
+        start_date: str,
+        end_date: str,
+        adjusted: bool = True,
+        batch_size: int = 10,
+        delay_between_batches: int = 12,
+    ) -> Dict[str, List[Dict]]:
+        """
+        Fetch data for multiple stocks with intelligent batching and rate limiting.
+
+        Args:
+            tickers: List of stock tickers
+            start_date: Start date in YYYY-MM-DD format
+            end_date: End date in YYYY-MM-DD format
+            adjusted: Whether to use adjusted prices
+            batch_size: Number of stocks to process in each batch
+            delay_between_batches: Seconds to wait between batches
+        """
+        results = {}
+        total_tickers = len(tickers)
+
+        logger.info(
+            f"Fetching data for {total_tickers} stocks in batches of {batch_size}"
+        )
+
+        # Process tickers in batches
+        for i in range(0, total_tickers, batch_size):
+            batch_tickers = tickers[i : i + batch_size]
+            batch_num = (i // batch_size) + 1
+            total_batches = (total_tickers + batch_size - 1) // batch_size
+
+            logger.info(
+                f"Processing batch {batch_num}/{total_batches} ({len(batch_tickers)} stocks)"
+            )
+
+            for ticker in batch_tickers:
+                try:
+                    results[ticker] = self.fetch_stock_data(
+                        ticker=ticker,
+                        start_date=start_date,
+                        end_date=end_date,
+                        adjusted=adjusted,
+                    )
+                    logger.info(f"Successfully fetched data for {ticker}")
+                except (MaxRetryError, ValueError, TypeError, BadResponse) as e:
+                    logger.error(f"Failed to fetch data for {ticker}: {str(e)}")
+                    results[ticker] = []
+
+            # Delay between batches to avoid rate limits
+            if i + batch_size < total_tickers:
+                logger.info(
+                    f"Waiting {delay_between_batches} seconds before next batch..."
+                )
+                time.sleep(delay_between_batches)
+
+        return results
+
+    def get_price_on_date(
+        self, ticker: str, target_date: datetime, tolerance_days: int = 7
+    ) -> Optional[float]:
+        start_date = target_date - timedelta(days=tolerance_days)
+        end_date = target_date + timedelta(days=tolerance_days)
+
+        try:
+            data = self.fetch_stock_data(
+                ticker=ticker,
+                start_date=start_date.strftime("%Y-%m-%d"),
+                end_date=end_date.strftime("%Y-%m-%d"),
+            )
+
+            if not data:
+                return None
+
+            # Normalise to a ``date`` object for distance comparison.
+            target_date_obj = (
+                target_date.date() if isinstance(target_date, datetime) else target_date
+            )
+
+            closest_data = min(
+                data, key=lambda x: abs((x["date"] - target_date_obj).days)
+            )
+
+            return float(closest_data["close"])
+
+        except (ValueError, TypeError) as e:
+            logger.error(f"Error getting price for {ticker} on {target_date}: {str(e)}")
+            return None
+
+    def get_sp500_tickers(self, limit: int = 500) -> List[str]:
+        """Return a tradable stock universe.
+
+        Tries to load active US common stocks from Massive and falls back to a
+        bundled list when the API is not reachable.
+        """
+        try:
+            self._rate_limit()
+            tickers: List[str] = []
+            for ticker in self.client.list_tickers(
+                market="stocks",
+                active=True,
+                limit=limit,
+                sort="ticker",
+            ):
+                symbol = getattr(ticker, "ticker", None)
+                if symbol:
+                    tickers.append(symbol)
+                if len(tickers) >= limit:
+                    break
+
+            if tickers:
+                logger.info(f"Loaded {len(tickers)} tickers from Massive")
+                return tickers
+        except Exception as e:  # noqa: BLE001 - fall back to bundled list
+            logger.warning(
+                f"Could not load tickers from Massive, using fallback universe: {e}"
+            )
+
+        return list(DEFAULT_UNIVERSE)
+
+
+def get_massive_client() -> MassiveAPIClient:
+    return MassiveAPIClient()

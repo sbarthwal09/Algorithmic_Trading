@@ -11,7 +11,8 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 from pathlib import Path
-from decouple import config
+
+from decouple import Csv, config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +22,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-sau8ajfn-hd@xe&@!==+ui21^y)^z)n#2o48%4!2quc8a_h2i3"
+SECRET_KEY = config(
+    "DJANGO_SECRET_KEY",
+    default="django-insecure-sau8ajfn-hd@xe&@!==+ui21^y)^z)n#2o48%4!2quc8a_h2i3",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config("DJANGO_DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config(
+    "DJANGO_ALLOWED_HOSTS",
+    default="localhost,127.0.0.1,[::1]",
+    cast=Csv(),
+)
 
 
 # Application definition
@@ -130,4 +138,28 @@ MAILERS = {
 }
 
 
+# Third-party API credentials (loaded from the .env file).
 MASSIVE_API_KEY = config("MASSIVE_API_KEY", default="")
+
+# SnapTrade. The historical spelling ("SNAPETRADE_*") is still accepted so
+# existing .env files keep working.
+SNAPTRADE_CLIENT_ID = config(
+    "SNAPTRADE_CLIENT_ID",
+    default=config("SNAPETRADE_CLIENT_ID", default=""),
+)
+SNAPTRADE_CONSUMER_KEY = config(
+    "SNAPTRADE_CONSUMER_KEY",
+    default=config("SNAPETRADE_CLIENT_SECRET", default=""),
+)
+# Backwards-compatible alias used across the codebase.
+SNAPTRADE_CLIENT_SECRET = SNAPTRADE_CONSUMER_KEY
+
+SNAPTRADE_REDIRECT_URI = config(
+    "SNAPTRADE_REDIRECT_URI",
+    default="http://localhost:8000/snaptrade/success/",
+)
+
+# Strategy / momentum configuration.
+MOMENTUM_LOOKBACK_MONTHS = config("MOMENTUM_LOOKBACK_MONTHS", default=12, cast=int)
+MOMENTUM_SKIP_MONTHS = config("MOMENTUM_SKIP_MONTHS", default=1, cast=int)
+REBALANCE_FREQUENCY = config("REBALANCE_FREQUENCY", default="monthly")
